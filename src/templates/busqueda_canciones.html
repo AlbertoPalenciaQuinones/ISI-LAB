@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Búsqueda por Canciones</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Inicio</a></li>
+            <li><a href="{{ url_for('busqueda_artistas') }}">Búsqueda por Artistas</a></li>
+            <li><a href="{{ url_for('busqueda_canciones') }}">Búsqueda por Canciones</a></li>
+            <li><a href="{{ url_for('wishlist') }}">Wishlist</a></li>
+            <li><a href="{{ url_for('notificaciones') }}">Notificaciones</a></li>
+        </ul>
+    </nav>
+    
+    
+
+    <div class="container">
+        <h1>Búsqueda por Canciones</h1>
+        
+        <form method="POST">
+            <input type="text" name="busqueda" placeholder="Buscar por canción..." required>
+            <button type="submit">Buscar</button>
+        </form>
+
+        {% if canciones %}
+            <div class="song-list">
+                {% for cancion in canciones %}
+                    <div class="song-item">
+                        <p>{{ cancion[0] }}</p>
+                        <a href="{{ url_for('ver_album', id_album=cancion[1]) }}">
+                            <button>Álbum</button>
+                        </a>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>

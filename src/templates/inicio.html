@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify to Vinyl - Inicio</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>SPOTIFY TO VINYL</h1>
+        <img src="{{ url_for('static', filename='logo_discogs.png') }}" alt="Discogs Logo">
+        
+        <div class="button-container">
+            <a href="{{ url_for('inicio_sesion') }}"><button>Iniciar Sesión</button></a>
+            <a href="{{ url_for('crear_cuenta') }}"><button>Crear Cuenta</button></a>
+        </div>
+
+        <a href="#" class="recover-password">Recuperar Contraseña</a>
+    </div>
+</body>
+</html>
