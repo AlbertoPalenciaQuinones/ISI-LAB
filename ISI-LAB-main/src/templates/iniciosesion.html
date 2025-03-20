@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/stylesloggin.css') }}">
+    <style>
+        h1 {
+           margin-top: -10px; 
+        }
+        .input-container {
+            margin-top: 12px; /* Ajusta la separación */
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Iniciar Sesión</h1>
+        
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <p class="{{ category }}">{{ message }}</p>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST">
+            <div class="input-group">
+                <label>Email:</label>
+                <input type="email" name="email" required>
+            </div>
+        
+            <div class="input-group">
+                <label>Contraseña:</label>
+                <input type="password" name="contraseña" required>
+            </div>
+        
+            <button type="submit">Iniciar Sesión</button>
+        </form>
+
+        <div class="link-container">
+            <a href="{{ url_for('crear_cuenta') }}" class="recover-password">¿No tienes cuenta? Regístrate aquí</a>
+        </div>
+    </div>
+</body>
+</html>
