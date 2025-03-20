@@ -4,42 +4,131 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Búsqueda por Artistas</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <!--<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
+    <style>
+        /* Estilos generales */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #d9d9d9;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    margin: 0;
+}
+
+/* Contenedor principal */
+.container {
+    width: 80%; /* Ocupar casi toda la pantalla */
+    max-width: 900px; /* Máximo ancho */
+    padding: 30px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+    text-align: center;
+}
+
+/* Estilo del título */
+h1 {
+    color: #006400;
+    font-size: 32px;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Formulario de búsqueda */
+.search-form {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.search-form input {
+    width: 60%;
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+.search-form button {
+    background-color: #006400;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.search-form button:hover {
+    background-color: #004d00;
+}
+
+/* Contenedor de los resultados */
+.results-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+/* Estilo de cada tarjeta de artista */
+.artist-card {
+    background-color: #f9f9f9;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+    text-align: left;
+    border-left: 5px solid #006400;
+}
+
+.artist-card h2 {
+    margin: 0;
+    color: #006400;
+    font-size: 22px;
+}
+
+.artist-card p {
+    margin: 5px 0;
+    font-size: 14px;
+}
+
+.artist-card a {
+    color: #004d00;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.artist-card a:hover {
+    text-decoration: underline;
+}
+
+    </style>
 </head>
 <body>
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('dashboard') }}">Inicio</a></li>
-            <li><a href="{{ url_for('busqueda_artistas') }}">Búsqueda por Artistas</a></li>
-            <li><a href="{{ url_for('busqueda_canciones') }}">Búsqueda por Canciones</a></li>
-            <li><a href="{{ url_for('wishlist') }}">Wishlist</a></li>
-            <li><a href="{{ url_for('notificaciones') }}">Notificaciones</a></li>
-        </ul>
-    </nav>
-    
-    
-    
-
     <div class="container">
         <h1>Búsqueda por Artistas</h1>
-        
-        <form method="POST">
+
+        <!-- Formulario de búsqueda -->
+        <form method="POST" class="search-form">
             <input type="text" name="busqueda" placeholder="Buscar por artista..." required>
             <button type="submit">Buscar</button>
         </form>
 
-        {% if artistas %}
-            <div class="artist-list">
-                {% for artista in artistas %}
-                    <div class="artist-item">
-                        <p>{{ artista[0] }}</p>
-                        <a href="{{ url_for('discografia', artista=artista[0]) }}">
-                            <button>Consultar Discografía</button>
-                        </a>
-                    </div>
-                {% endfor %}
+        <!-- Contenedor donde se mostrarán los resultados -->
+        <div class="results-container">
+            {% for artista in artistas %}
+            <div class="artist-card">
+                <h2>{{ artista.nombre }}</h2>
+                <p><strong>Género:</strong> {{ artista.genero }}</p>
+                <p><strong>Seguidores:</strong> {{ artista.followers }}</p>
+                <p><strong>Más info:</strong> <a href="{{ artista.url }}" target="_blank">Ver en Discogs</a></p>
             </div>
-        {% endif %}
+            {% endfor %}
+        </div>
     </div>
 </body>
 </html>
