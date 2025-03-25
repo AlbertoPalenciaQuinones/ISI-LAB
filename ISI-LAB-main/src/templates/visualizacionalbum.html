@@ -2,160 +2,138 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Detalle del EP</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Detalles del Álbum</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #d9d9d9;
-            margin: 0;
-            padding: 30px;
-            display: flex;
-            justify-content: center;
-        }
-
-        .ep-container {
-            width: 100%;
-            max-width: 1100px;
+        .album-details {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
             background-color: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            padding: 30px;
-            box-sizing: border-box;
-        }
-
-        .top-bar {
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
             display: flex;
-            justify-content: flex-end;
+            flex-direction: column;
+            gap: 20px;
         }
 
-        .top-bar a {
-            text-decoration: none;
-            font-size: 20px;
-            color: #333;
-            margin-left: 15px;
-        }
-
-        .main-info {
-            display: flex;
-            margin-top: 20px;
-            gap: 30px;
-        }
-
-        .cover {
-            width: 180px;
-            height: 180px;
-            background-color: #ccc;
-            border-radius: 8px;
-            object-fit: cover;
-        }
-
-        .details {
-            flex-grow: 1;
-        }
-
-        .details p {
-            margin: 6px 0;
-            font-size: 15px;
-        }
-
-        .details strong {
-            color: #006400;
-        }
-
-        .middle-section {
+        .album-header {
             display: flex;
             gap: 20px;
-            margin-top: 30px;
         }
 
-        .description {
-            flex: 2;
-            border: 1px solid #ccc;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            height: 120px;
+        .album-header img {
+            width: 200px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 10px;
         }
 
-        .tracklist {
-            flex: 1;
-            border: 1px solid #ccc;
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 14px;
-            height: 120px;
-        }
-
-        .bottom-bar {
-            margin-top: 20px;
+        .album-info {
+            flex-grow: 1;
             display: flex;
+            flex-direction: column;
             justify-content: space-between;
-            align-items: center;
+            text-align: left;
         }
 
-        .bottom-bar button {
-            background-color: #006400;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 6px;
+        .album-info h1 {
+            margin: 0;
+            color: #006400;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .album-info p {
+            margin: 5px 0;
+            font-size: 16px;
+            color: #333;
+        }
+
+        .wishlist-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .wishlist-icon {
+            font-size: 24px;
+            color: #ff0000;
+            cursor: pointer;
+        }
+
+        .wishlist-icon:hover {
+            color: #cc0000;
+        }
+
+        .wishlist-text {
+            font-size: 16px;
+            color: #006400;
             font-weight: bold;
             cursor: pointer;
         }
 
-        .bottom-bar button:hover {
+        .btn-back {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #006400;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .btn-back:hover {
             background-color: #004d00;
         }
-
-        .bottom-bar label {
-            font-size: 14px;
-        }
-
     </style>
 </head>
 <body>
+    {% extends "base.html" %}
 
-<div class="ep-container">
+    {% block title %}Detalles del Álbum{% endblock %}
 
-    <!-- Top icons -->
-    <div class="top-bar">
-        <a href="#">←</a>
-        <a href="#">✕</a>
-    </div>
-
-    <!-- EP Info -->
-    <div class="main-info">
-        <img src="{{ ep.imagen }}" alt="Portada del EP" class="cover">
-        <div class="details">
-            <p><strong>Nombre del EP:</strong> {{ ep.nombre }}</p>
-            <p><strong>Artista:</strong> {{ ep.artista }}</p>
-            <p><strong>Fecha de lanzamiento:</strong> {{ ep.fecha }}</p>
-            <p><strong>Género:</strong> {{ ep.genero }}</p>
-            <p><strong>Sello Discográfico:</strong> {{ ep.sello }}</p>
+    {% block content %}
+    <div class="album-details">
+        <!-- Encabezado del álbum -->
+        <div class="album-header">
+            <img src="{{ album.imagen or url_for('static', filename='images/default_album.png') }}" alt="Imagen del álbum">
+            <div class="album-info">
+                <h1>{{ album.nombre }}</h1>
+                <p><strong>Artista:</strong> {{ album.artista }}</p>
+                <p><strong>Año:</strong> {{ album.year }}</p>
+                <p><strong>Género:</strong> {{ album.tags or 'No disponible' }}</p>
+                <p><strong>Sello Discográfico:</strong> {{ album.sello or 'No disponible' }}</p>
+                <p><strong>Disponibilidad:</strong> {{ album.disponibilidad }}</p>
+                <div class="wishlist-container">
+                    {% if album.in_wishlist %}
+                        <form action="{{ url_for('remove_from_wishlist', id_album=album.id_album) }}" method="POST">
+                            <button type="submit" class="wishlist-button">
+                                ❌ Eliminar de la Wishlist
+                            </button>
+                        </form>
+                    {% else %}
+                        <form action="{{ url_for('add_to_wishlist', id_album=album.id_album) }}" method="POST">
+                            <button type="submit" class="wishlist-button">
+                                ❤️ Añadir a la Wishlist
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
         </div>
-    </div>
 
-    <!-- Descripción + Tracklist -->
-    <div class="middle-section">
-        <div class="description">
-            <strong>DESCRIPCIÓN</strong>
-            <p>{{ ep.descripcion or "No hay descripción disponible." }}</p>
+        <a href="{{ url_for(from_page) }}" class="btn-back">
+            {% if from_page == 'wishlist' %}
+                Volver a la Wishlist
+            {% else %}
+                Volver a la Búsqueda
+            {% endif %}
+        </a>
         </div>
-        <div class="tracklist">
-            {% for pista in ep.pistas %}
-                <p>{{ pista }}</p>
-            {% endfor %}
-        </div>
-    </div>
-
-    <!-- Acciones -->
-    <div class="bottom-bar">
-        <button>Consultar Disponibilidad</button>
-        <label><input type="checkbox"> Marcar como deseado</label>
-    </div>
-
-</div>
-
+    {% endblock %}
 </body>
 </html>

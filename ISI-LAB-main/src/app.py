@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from config import config
 from discogs_api import obtener_artistas_discogs, obtener_info_discogs  # Importar funciones de la API de Discogs
-from lastfm_api import obtener_info_album_lastfm, obtener_artistas_lastfm, obtener_info_artista_lastfm  # Importar funciones de la API de last.fm
+from lastfm_api import  obtener_info_album_lastfm, obtener_artistas_lastfm, obtener_info_artista_lastfm  # Importar funciones de la API de last.fm
 from database import guardar_artista
 
 app = Flask(__name__)
@@ -179,8 +179,9 @@ def discografia(artista):
 @app.route('/busqueda_albumes', methods=['GET', 'POST'])
 def busqueda_albumes():
     albumes = []  # Lista para almacenar los resultados finales
+    mensaje_error = None  # Variable para almacenar el mensaje de error
 
-    # 🔹 Capturar el nombre del artista si se pasa como parámetro en la URL
+    # Capturar el nombre del artista si se pasa como parámetro en la URL
     nombre_artista = request.args.get('artista', '').strip()
 
     if request.method == 'POST':
@@ -190,38 +191,139 @@ def busqueda_albumes():
         busqueda = nombre_artista
 
     if busqueda:
-        # 🔹 1. Buscar en la base de datos (SIN LÍMITE)
-        cursor = conexion.connection.cursor()
-        cursor.execute("""
-            SELECT DISTINCT nombre, artista, year, formato, url 
-            FROM albumes 
-            WHERE LOWER(nombre) LIKE LOWER(%s) OR LOWER(artista) = LOWER(%s)
-        """, ('%' + busqueda + '%', busqueda))
+        try:
+            # Buscar en la base de datos
+            cursor = conexion.connection.cursor()
+            cursor.execute("""
+                SELECT DISTINCT id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url
+                FROM albumes
+                WHERE LOWER(nombre) LIKE LOWER(%s) OR LOWER(artista) = LOWER(%s)
+            """, ('%' + busqueda + '%', busqueda))
 
-        albumes_bd = [{"nombre": fila["nombre"], "artista": fila["artista"], "year": fila["year"], 
-                       "formato": fila["formato"], "url": fila["url"]} for fila in cursor.fetchall()]
-        print("📀 Álbumes en BD:", albumes_bd)
+            albumes_bd = [{"id_album": fila["id_album"], "nombre": fila["nombre"], "artista": fila["artista"],
+                           "year": fila["year"], "formato": fila["formato"], "url": fila["url"],
+                           "imagen": fila["lastfm_image"], "lastfm_url": fila["lastfm_url"]} for fila in cursor.fetchall()]
+            print("📀 Álbumes en BD:", albumes_bd)
 
-        # 🔹 2. Combinar resultados finales
-        albumes = albumes_bd
+            if not albumes_bd:  # Solo busca en API si no lo encuentra en la BD
+                print("🔍 No encontrado en BD. Buscando en API...")
+                albumes_api = obtener_info_album_lastfm(busqueda)  # Llama a la función de la API para buscar álbumes
 
-        print("✅ Lista final de álbumes:", albumes)
+                if albumes_api:
+                    # Guardar en la BD los álbumes nuevos
+                    for album in albumes_api:
+                        cursor.execute("""
+                            INSERT INTO albumes (id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                        """, (album["id_album"], album["nombre"], album["artista"], album["year"],
+                              album["formato"], album["url"], album["imagen"], album["lastfm_url"]))
+                        conexion.connection.commit()
 
-    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista)
+                    albumes = albumes_api  # Mostrar los nuevos resultados de la API
+                else:
+                    mensaje_error = "No se encontraron resultados."
+            else:
+                print("✅ Álbum encontrado en BD.")
+                albumes = albumes_bd  # Mostrar los resultados de la BD
+        except Exception as e:
+            print(f"⚠️ Error al buscar álbumes: {e}")
+            mensaje_error = "Ocurrió un error al realizar la búsqueda. Por favor, inténtalo de nuevo más tarde."
+    else:
+        mensaje_error = "Por favor, ingresa un término de búsqueda."
 
+    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista, mensaje_error=mensaje_error)
 
 @app.route('/ver_album/<id_album>')
 def ver_album(id_album):
+    if 'usuario_id' not in session:
+        flash("Debes iniciar sesión para ver los detalles del álbum.", "danger")
+        return redirect(url_for('inicio_sesion'))
+
+    usuario_id = session['usuario_id']
     cursor = conexion.connection.cursor()
+
+    # Obtener los detalles del álbum
     cursor.execute("""
-        SELECT nombre, artista, year, formato, url 
-        FROM albumes 
+        SELECT id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url, sello_discografico, lastfm_tags, discogs_availability
+        FROM albumes
         WHERE id_album = %s
     """, (id_album,))
-
     album = cursor.fetchone()
-    
-    return render_template('ver_album.html', album=album)
+
+    if not album:
+        flash("El álbum no existe o no está disponible.", "danger")
+        return redirect(url_for('busqueda_albumes'))
+
+    # Verificar si el álbum ya está en la wishlist
+    cursor.execute("""
+        SELECT 1 FROM wishlist
+        WHERE id_usuario = %s AND id_album = %s
+    """, (usuario_id, id_album))
+    in_wishlist = cursor.fetchone() is not None
+
+    album_data = {
+        "id_album": album["id_album"],
+        "nombre": album["nombre"],
+        "artista": album["artista"],
+        "year": album["year"],
+        "formato": album["formato"],
+        "url": album["url"],
+        "imagen": album["lastfm_image"],
+        "lastfm_url": album["lastfm_url"],
+        "sello": album["sello_discografico"],
+        "tags": album["lastfm_tags"],
+        "disponibilidad": "Disponible" if album["discogs_availability"] == 1 else "Agotado",
+        "in_wishlist": in_wishlist  # Indica si el álbum está en la wishlist
+    }
+
+    # Capturar el parámetro 'from_page' para saber si viene de la wishlist
+    from_page = request.args.get('from_page', 'busqueda_albumes')
+
+    return render_template('visualizacionalbum.html', album=album_data, from_page=from_page)
+
+@app.route('/add_to_wishlist/<id_album>', methods=['POST'])
+def add_to_wishlist(id_album):
+    if 'usuario_id' not in session:
+        flash("Debes iniciar sesión para añadir álbumes a tu wishlist.", "danger")
+        return redirect(url_for('inicio_sesion'))
+
+    usuario_id = session['usuario_id']
+    id_wishlist = str(uuid.uuid4())  # Generar un identificador único para la wishlist
+    cursor = conexion.connection.cursor()
+    try:
+        cursor.execute("""
+            INSERT INTO wishlist (id_wishlist, id_usuario, id_album)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE id_album = id_album
+        """, (id_wishlist, usuario_id, id_album))
+        conexion.connection.commit()
+        flash("¡El álbum ha sido añadido a tu wishlist con éxito!", "success")
+    except Exception as e:
+        print(f"Error al añadir a la wishlist: {e}")
+        flash("Ocurrió un error al intentar añadir el álbum a tu wishlist.", "danger")
+
+    return redirect(url_for('ver_album', id_album=id_album))
+
+@app.route('/remove_from_wishlist/<id_album>', methods=['POST'])
+def remove_from_wishlist(id_album):
+    if 'usuario_id' not in session:
+        flash("Debes iniciar sesión para eliminar álbumes de tu wishlist.", "danger")
+        return redirect(url_for('inicio_sesion'))
+
+    usuario_id = session['usuario_id']
+    cursor = conexion.connection.cursor()
+    try:
+        cursor.execute("""
+            DELETE FROM wishlist
+            WHERE id_usuario = %s AND id_album = %s
+        """, (usuario_id, id_album))
+        conexion.connection.commit()
+        flash("¡El álbum ha sido eliminado de tu wishlist con éxito!", "success")
+    except Exception as e:
+        print(f"Error al eliminar de la wishlist: {e}")
+        flash("Ocurrió un error al intentar eliminar el álbum de tu wishlist.", "danger")
+
+    return redirect(url_for('wishlist'))
 
 @app.route('/wishlist')
 def wishlist():
@@ -232,16 +334,15 @@ def wishlist():
     
     cursor = conexion.connection.cursor()
     cursor.execute("""
-        SELECT albumes.id_album, albumes.nombre, albumes.artista 
+        SELECT albumes.id_album, albumes.nombre, albumes.artista, albumes.lastfm_image
         FROM wishlist
         JOIN albumes ON wishlist.id_album = albumes.id_album
         WHERE wishlist.id_usuario = %s
     """, (usuario_id,))
     
-    wishlist_albumes = cursor.fetchall()
+    wishlist_albumes = [{"id_album": fila["id_album"], "nombre": fila["nombre"], "artista": fila["artista"], "imagen": fila["lastfm_image"]} for fila in cursor.fetchall()]
     
     return render_template('wishlist.html', wishlist_albumes=wishlist_albumes)
-
 
 @app.route('/eliminar_wishlist/<id_album>', methods=['POST'])
 def eliminar_wishlist(id_album):

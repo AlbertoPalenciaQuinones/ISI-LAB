@@ -106,4 +106,3 @@ def obtener_info_artista_lastfm(nombre):
     print(f"❌ Error recuperando info de Last.fm para {nombre}")
     return {}
 
-

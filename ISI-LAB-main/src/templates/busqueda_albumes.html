@@ -81,7 +81,16 @@
             margin-bottom: 10px;
         }
 
+        .album-image img {
+            width: 135px;
+            height: 135px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 15px;
+        }
+
         .album-info {
+            flex-grow: 1;
             text-align: left;
         }
 
@@ -97,7 +106,7 @@
         }
 
         .btn-detalles {
-            background-color: #0066cc;
+            background-color: #004d00;
             color: white;
             border: none;
             padding: 10px 15px;
@@ -109,7 +118,38 @@
         }
 
         .btn-detalles:hover {
-            background-color: #004c99;
+            background-color: #004d00;
+     }
+
+        .album-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-left: 15px;
+        }
+
+        .btn-info {
+            background-color: #006400;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .btn-info:hover {
+            background-color: #004d00;
+        }
+
+        .btn-info.disabled {
+            background-color: #ccc;
+            color: #666;
+            cursor: not-allowed;
+            text-decoration: none;
         }
     </style>
 </head>
@@ -130,20 +170,34 @@
         {% if albumes %}
             {% for album in albumes %}
             <div class="album-card">
+                <!-- Imagen del álbum -->
+                <div class="album-image">
+                    <img src="{{ album.imagen or url_for('static', filename='images/default_album.png') }}" alt="Imagen del álbum">
+                </div>
+                <!-- Información del álbum -->
                 <div class="album-info">
                     <h2>{{ album.nombre }}</h2>
                     <p><strong>Artista:</strong> {{ album.artista }}</p>
                     <p><strong>Año:</strong> {{ album.year }}</p>
                     <p><strong>Formato:</strong> {{ album.formato }}</p>
                 </div>
-                <a href="{{ url_for('ver_album', album_id=album.id) }}" class="btn-detalles">Ver Detalles</a>
+                <!-- Botones de acción -->
+                <div class="album-actions">
+                    <a href="{{ url_for('ver_album', id_album=album.id_album) }}" class="btn-detalles">Ver Detalles</a>
+                    {% if album.lastfm_url %}
+                        <a href="{{ album.lastfm_url }}" target="_blank" class="btn-info">Más Información</a>
+                    {% else %}
+                        <a href="#" class="btn-info disabled">Sin información</a>
+                    {% endif %}
+                </div>
             </div>
             {% endfor %}
         {% else %}
-            <p>No se encontraron álbumes.</p>
+            <p style="text-align: center; font-size: 18px; color: #666;">No se encontraron resultados.</p>
         {% endif %}
     </div>
-
+    
+    
     {% endblock %}
 </body>
 </html>

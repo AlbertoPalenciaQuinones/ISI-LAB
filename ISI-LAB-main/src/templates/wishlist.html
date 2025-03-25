@@ -11,29 +11,45 @@
         <ul>
             <li><a href="{{ url_for('dashboard') }}">Inicio</a></li>
             <li><a href="{{ url_for('busqueda_artistas') }}">Búsqueda por Artistas</a></li>
-            <li><a href="{{ url_for('busqueda_albumes') }}">Búsqueda por álbumes</a></li>
+            <li><a href="{{ url_for('busqueda_albumes') }}">Búsqueda por Álbumes</a></li>
             <li><a href="{{ url_for('wishlist') }}">Wishlist</a></li>
             <li><a href="{{ url_for('notificaciones') }}">Notificaciones</a></li>
         </ul>
     </nav>
-    
+
+    <!-- Bloque para mostrar mensajes flash -->
+    <div id="flash-messages" class="flash-messages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
 
     <div class="container">
         <h1>Wishlist</h1>
         
         {% if wishlist_albumes %}
-            <div class="wishlist-list">
-                {% for album in wishlist_albumes %}
-                    <div class="wishlist-item">
-                        <p><strong>{{ album[1] }}</strong> - {{ album[2] }}</p>
-                        <a href="{{ url_for('ver_album', id_album=album[0]) }}">
-                            <button class="details-btn">Ver Detalles</button>
-                        </a>
-                        <form method="POST" action="{{ url_for('eliminar_wishlist', id_album=album[0]) }}">
-                            <button type="submit" class="heart-btn">❤️</button>
-                        </form>
-                    </div>
-                {% endfor %}
+            <!-- Contenedor con scroll para los resultados -->
+            <div class="results-container">
+                <div class="album-grid">
+                    {% for album in wishlist_albumes %}
+                        <div class="album-card">
+                            <img src="{{ album.imagen or url_for('static', filename='images/default_album.png') }}" alt="Imagen del álbum">
+                            <div class="album-info">
+                                <h2>{{ album.nombre }}</h2>
+                                <p><strong>Artista:</strong> {{ album.artista }}</p>
+                                <a href="{{ url_for('ver_album', id_album=album.id_album, from_page='wishlist') }}" class="details-btn">Ver Detalles</a>                                <form method="POST" action="{{ url_for('remove_from_wishlist', id_album=album.id_album) }}">
+                                    <button type="submit" class="remove-btn">❌ Eliminar</button>
+                                </form>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
             </div>
         {% else %}
             <p>No tienes álbumes en tu wishlist.</p>
@@ -41,3 +57,12 @@
     </div>
 </body>
 </html>
+<script>
+    // Esperar 3 segundos y luego ocultar los mensajes flash con una transición
+    setTimeout(() => {
+        const flashMessages = document.getElementById('flash-messages');
+        if (flashMessages) {
+            flashMessages.classList.add('hidden');
+        }
+    }, 3000); // 3000 milisegundos = 3 segundos
+</script>
