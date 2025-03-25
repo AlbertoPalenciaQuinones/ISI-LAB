@@ -4,131 +4,208 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Búsqueda por Artistas</title>
-    <!--<link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}"> -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         /* Estilos generales */
-body {
-    font-family: Arial, sans-serif;
-    background-color: #d9d9d9;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-}
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #d9d9d9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            width: 100%;
+        }
 
-/* Contenedor principal */
-.container {
-    width: 80%; /* Ocupar casi toda la pantalla */
-    max-width: 900px; /* Máximo ancho */
-    padding: 30px;
-    background-color: white;
-    border-radius: 10px;
-    box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-    text-align: center;
-}
+        /* Contenedor de búsqueda */
+        .search-container {
+            width: 100%;  /* 🔹 Ahora ocupa todo el ancho disponible */
+            max-width: 1100px;  /* 🔹 Ligeramente más grande para mejor aspecto */
+            display: flex;
+            justify-content: center;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
 
-/* Estilo del título */
-h1 {
-    color: #006400;
-    font-size: 32px;
-    font-weight: bold;
-    margin-bottom: 20px;
-}
+        .search-form {
+            display: flex;
+            width: 100%;  /* 🔹 Formulario ocupa todo el ancho */
+            max-width: 900px;
+            gap: 10px;
+            justify-content: center;
+        }
 
-/* Formulario de búsqueda */
-.search-form {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
-}
+        .search-form input {
+            flex-grow: 1;  /* 🔹 Hace que el input ocupe más espacio */
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
 
-.search-form input {
-    width: 60%;
-    padding: 10px;
-    font-size: 16px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
+        .search-form button {
+            background-color: #006400;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
 
-.search-form button {
-    background-color: #006400;
-    color: white;
-    border: none;
-    padding: 10px 15px;
-    font-size: 16px;
-    cursor: pointer;
-    border-radius: 5px;
-}
+        .search-form button:hover {
+            background-color: #004d00;
+        }
 
-.search-form button:hover {
-    background-color: #004d00;
-}
+        /* Contenedor de resultados */
+        .results-container {
+            width: 100%;  /* 🔹 Asegura que el contenedor de resultados también sea amplio */
+            max-width: 1100px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
+            margin-top: 20px;
+        }
 
-/* Contenedor de los resultados */
-.results-container {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    margin-top: 20px;
-}
+        /* Tarjeta de artista */
+        .artist-card {
+            display: flex;
+            align-items: center;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
+            border-left: 5px solid #006400;
+            justify-content: space-between;
+            width: 100%; /* Ocupa todo el ancho del contenedor */
+            box-sizing: border-box; /* Evita que el padding afecte el ancho */
+        }
 
-/* Estilo de cada tarjeta de artista */
-.artist-card {
-    background-color: #f9f9f9;
-    padding: 15px;
-    border-radius: 8px;
-    box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
-    text-align: left;
-    border-left: 5px solid #006400;
-}
+        /* Imagen del artista */
+        .artist-image {
+            width: 135px;
+            height: 135px;
+            border-radius: 10px;
+            object-fit: cover;
+            margin-right: 20px;
+        }
 
-.artist-card h2 {
-    margin: 0;
-    color: #006400;
-    font-size: 22px;
-}
+        /* Ajuste de la información del artista */
+        .artist-info {
+            flex-grow: 1;
+            padding-right: 20px; /* Espacio entre texto y botones */
+            text-align: left; /* Asegura alineación a la izquierda */
+            display: flex;
+            flex-direction: column;
+            justify-content: center; /* Asegura que la info esté bien alineada */
+        }
 
-.artist-card p {
-    margin: 5px 0;
-    font-size: 14px;
-}
+        .artist-info h2 {
+            margin: 0;
+            color: #006400;
+            font-size: 22px;
+        }
 
-.artist-card a {
-    color: #004d00;
-    text-decoration: none;
-    font-weight: bold;
-}
+        .artist-info p {
+            margin: 5px 0;
+            font-size: 14px;
+        }
 
-.artist-card a:hover {
-    text-decoration: underline;
-}
+        /* Ajuste de los botones */
+        .artist-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Aumenta el espacio entre los botones */
+            margin-left: 20px; /* Agrega margen entre la info y los botones */
+        }
+
+        .artist-actions a {
+            display: block;
+            text-align: center;
+            padding: 8px 12px;
+            color: white;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 5px;
+            min-width: 160px;
+        }
+
+        .btn-discografia {
+            background-color: #004d00;
+        }
+
+        .btn-info {
+            background-color: #006400;
+        }
+
+        .btn-discografia:hover {
+            background-color: #003300;
+        }
+
+        .btn-info:hover {
+            background-color: #004d00;
+        }
 
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Búsqueda por Artistas</h1>
 
-        <!-- Formulario de búsqueda -->
+    {% extends "base.html" %}
+
+    {% block title %}Búsqueda por Artistas{% endblock %}
+
+    {% block content %}
+
+    <!-- Formulario de búsqueda -->
+    <div class="search-container">
         <form method="POST" class="search-form">
             <input type="text" name="busqueda" placeholder="Buscar por artista..." required>
             <button type="submit">Buscar</button>
         </form>
+    </div>
 
-        <!-- Contenedor donde se mostrarán los resultados -->
-        <div class="results-container">
+    <!-- Contenedor de los resultados -->
+    <div class="results-container">
+        <h2>Resultados de la búsqueda</h2>
+        {% if artistas %}
             {% for artista in artistas %}
             <div class="artist-card">
-                <h2>{{ artista.nombre }}</h2>
-                <p><strong>Género:</strong> {{ artista.genero }}</p>
-                <p><strong>Seguidores:</strong> {{ artista.followers }}</p>
-                <p><strong>Más info:</strong> <a href="{{ artista.url }}" target="_blank">Ver en Discogs</a></p>
+                <!-- Imagen del artista -->
+                <img src="{{ artista.imagen }}" alt="{{ artista.nombre }}" class="artist-image">
+            
+                <!-- Información del artista -->
+                <div class="artist-info">
+                    <h2>{{ artista.nombre }}</h2>
+                    <p><strong>Género:</strong> {{ artista.tags or 'No disponible' }}</p>
+                    <p><strong>Seguidores:</strong> {{ artista.listeners or 'No disponible' }}</p>
+                    <p><strong>Reproducciones:</strong> {{ artista.plays or 'No disponible' }}</p>
+                </div>
+            
+                <!-- Botones de acción -->
+                <div class="artist-actions">
+                    <a href="{{ url_for('busqueda_albumes', artista=artista.nombre) }}" class="btn-discografia">Consultar Discografía</a>
+                
+                    {% if artista.url_discogs %}
+                        <a href="{{ artista.url_lastfm }}" target="_blank" class="btn-info">Más Información</a>
+                    {% else %}
+                        <a href="#" class="btn-info disabled">Sin información</a>
+                    {% endif %}
+                </div>
             </div>
+            
             {% endfor %}
-        </div>
+        {% else %}
+            <p>No se encontraron resultados.</p>
+        {% endif %}
     </div>
+
+    {% endblock %}
+
 </body>
 </html>

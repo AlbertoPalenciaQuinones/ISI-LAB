@@ -10,15 +10,28 @@ BASE_URL = "https://api.discogs.com"
 
 # 🔹 ✅ Función para buscar información de un artista en Discogs
 def obtener_artistas_discogs(busqueda):
-    """ Busca hasta 5 artistas en Discogs """
+    """ Busca artistas en Discogs cuyo nombre coincida exactamente con el término buscado """
     url = "https://api.discogs.com/database/search"
-    params = {"q": busqueda, "type": "artist", "token": ACCESS_TOKEN, "per_page": 5}
+    params = {"q": busqueda, "type": "artist", "token": ACCESS_TOKEN, "per_page": 10}  # Se puede pedir más para filtrar luego
 
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        resultados = response.json().get("results", [])[:5]  # Limitar a 5 resultados
-        artistas = [{"nombre": artista["title"]} for artista in resultados]  # Crear lista de diccionarios
+        resultados = response.json().get("results", [])
+
+        # Normalizar la búsqueda para comparación exacta (ignorando mayúsculas/minúsculas)
+        busqueda_normalizada = busqueda.strip().lower()
+
+        artistas = []
+        for artista in resultados:
+            nombre = artista.get("title", "").strip()
+            if nombre.lower() == busqueda_normalizada:
+                artistas.append({
+                    "nombre": nombre,
+                    "imagen": artista.get("cover_image", ""),
+                    "url": artista.get("resource_url", "#")
+                })
+
         return artistas
 
     return []

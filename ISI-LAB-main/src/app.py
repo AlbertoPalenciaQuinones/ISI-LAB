@@ -4,7 +4,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from config import config
 from discogs_api import obtener_artistas_discogs, obtener_info_discogs  # Importar funciones de la API de Discogs
-from lastfm_api import obtener_info_album_lastfm, obtener_artistas_lastfm  # Importar funciones de la API de last.fm
+from lastfm_api import obtener_info_album_lastfm, obtener_artistas_lastfm, obtener_info_artista_lastfm  # Importar funciones de la API de last.fm
+from database import guardar_artista
 
 app = Flask(__name__)
 app.secret_key = 'clave_secreta'
@@ -76,82 +77,91 @@ def dashboard():
     return render_template('dashboard.html')
 
 
+# --------------------------------------------------------------------------------------------------------------------------------- #
+
+# METODOS PARA BUSCAR ARTISTAS
+
+def buscar_artistas_en_api(busqueda):
+    """ 
+    Busca primero en Discogs y usa esos resultados para buscar información más completa en Last.fm.
+    """
+    artistas_discogs = obtener_artistas_discogs(busqueda)
+    artistas_completos = []
+
+    if not artistas_discogs:
+        print("⚠️ No se encontraron artistas en Discogs.")
+        return []
+
+    for artista in artistas_discogs:
+        nombre = artista.get("nombre", "").strip()
+        imagen_discogs = artista.get("imagen", "")
+        url_discogs = artista.get("url", "#")
+
+        # 🔹 Llamada a getinfo de Last.fm (para datos completos del artista)
+        info_lastfm = obtener_info_artista_lastfm(nombre)  # Esta función debe ser tipo artist.getinfo
+
+        artista_completo = {
+            "id_artista": None,
+            "nombre": nombre,
+            "biografia": info_lastfm.get("biografia", "No disponible"),
+            "imagen": imagen_discogs if imagen_discogs else info_lastfm.get("imagen", ""),
+            "url_discogs": url_discogs,
+            "url_lastfm": info_lastfm.get("url_lastfm", "#"),
+            "listeners": info_lastfm.get("listeners", 0),
+            "plays": info_lastfm.get("plays", 0),
+            "tags": info_lastfm.get("tags", "No especificado"),
+        }
+
+        artistas_completos.append(artista_completo)
+
+    print(f"✅ Artistas procesados con datos combinados: {artistas_completos}")
+    return artistas_completos
+
+
 @app.route('/busqueda_artistas', methods=['GET', 'POST'])
 def busqueda_artistas():
-    artistas = []  # Lista para almacenar los resultados finales
+    artistas = []
 
     if request.method == 'POST':
-        busqueda = request.form['busqueda'].strip()  # Eliminar espacios extra
-        
-        # 🔹 1. Buscar en la base de datos (SIN LÍMITE)
+        busqueda = request.form['busqueda'].strip()
+
+        # 🔹 1. Buscar en la base de datos
         cursor = conexion.connection.cursor()
         cursor.execute("""
-            SELECT DISTINCT artista 
-            FROM albumes 
-            WHERE LOWER(artista) = LOWER(%s)
+            SELECT id_artista, nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags
+            FROM artistas
+            WHERE LOWER(nombre) = LOWER(%s)
         """, (busqueda,))
         
-        artistas_bd = [{"nombre": fila["artista"]} for fila in cursor.fetchall()]
+        artistas_bd = [dict(fila) for fila in cursor.fetchall()]
         print("🎵 Artistas en BD:", artistas_bd)
 
-        # 🔹 2. Buscar en las APIs (limitado a 5 artistas adicionales)
-        artistas_api = buscar_artistas_en_api(busqueda)
+        if not artistas_bd:  # Solo busca en API si no lo encuentra en la BD
+            print("🔍 No encontrado en BD. Buscando en API...")
+            artistas_api = buscar_artistas_en_api(busqueda)
 
-        # 🔹 3. Filtrar resultados para que solo coincidan EXACTAMENTE con el nombre
-        artistas_api_filtrados = []
-        for artista in artistas_api:
-            if isinstance(artista, dict):  
-                nombre_artista = artista.get("nombre", "").strip().lower()
-                if nombre_artista == busqueda.lower():  # Comparar nombres exactos
-                    artistas_api_filtrados.append(artista)
+            # Guardar en la BD los artistas nuevos
+            for artista in artistas_api:
+                guardar_artista(
+                    id_artista=artista["id_artista"],
+                    nombre=artista["nombre"],
+                    biografia=artista["biografia"],
+                    imagen=artista["imagen"],
+                    url_discogs=artista["url_discogs"],
+                    url_lastfm=artista["url_lastfm"],
+                    listeners=artista["listeners"],
+                    plays=artista["plays"],
+                    tags=artista["tags"]
+                )
 
-        print("🎶 Artistas encontrados en API (filtrados):", artistas_api_filtrados)
+            artistas = artistas_api  # Mostrar los nuevos resultados de la API
+        else:
+            print("✅ Artista encontrado en BD.")
+            artistas = artistas_bd  # Mostrar los resultados de la BD
 
-        # 🔹 4. Evitar duplicados y agregar TODOS los artistas nuevos a la BD
-        nombres_bd = {artista["nombre"].lower() for artista in artistas_bd}
-        artistas_nuevos = [artista for artista in artistas_api_filtrados if artista["nombre"].lower() not in nombres_bd]
-
-        # Guardar en la base de datos los artistas nuevos
-      #  for artista in artistas_nuevos:
-           # guardar_artista(
-              #  id_artista=artista.get("id_artista", None),
-               # nombre=artista.get("nombre", ""),
-                #biografia=artista.get("biografia", "No disponible"),
-                #imagen=artista.get("imagen", ""),
-                #url_discogs=artista.get("url_discogs", ""),
-                #url_lastfm=artista.get("url_lastfm", ""),
-                #listeners=artista.get("listeners", None),
-                #plays=artista.get("plays", None),
-                #tags=artista.get("tags", "")
-          #  )
-
-        # 🔹 5. Combinar resultados finales
-        artistas = artistas_bd + artistas_nuevos
-
-        print("✅ Lista final de artistas (guardados en BD):", artistas)
-    
     return render_template('busqueda_artistas.html', artistas=artistas)
 
-
-# 🔹 Función para buscar artistas en las APIs de Discogs y Last.fm
-def buscar_artistas_en_api(busqueda):
-    """ Busca artistas en Discogs y Last.fm, pero devuelve máximo 5 nuevos artistas """
-    artistas_encontrados = []
-
-    # 📌 Buscar en Discogs
-    artistas_discogs = obtener_artistas_discogs(busqueda)
-    if artistas_discogs:
-        artistas_encontrados.extend(artistas_discogs)
-
-    # 📌 Buscar en Last.fm
-    artistas_lastfm = obtener_artistas_lastfm(busqueda)
-    if artistas_lastfm:
-        artistas_encontrados.extend(artistas_lastfm)
-
-    return artistas_encontrados  # 🔹 Retorna todos los encontrados (luego filtramos en `busqueda_artistas`)
-
-
-
+# --------------------------------------------------------------------------------------------------------------------------------- #
 
 @app.route('/discografia/<artista>')
 def discografia(artista):
@@ -165,35 +175,39 @@ def discografia(artista):
     albumes = cursor.fetchall()
     return render_template('discografia.html', artista=artista, albumes=albumes)
 
+
 @app.route('/busqueda_albumes', methods=['GET', 'POST'])
 def busqueda_albumes():
     albumes = []  # Lista para almacenar los resultados finales
 
+    # 🔹 Capturar el nombre del artista si se pasa como parámetro en la URL
+    nombre_artista = request.args.get('artista', '').strip()
+
     if request.method == 'POST':
         busqueda = request.form['busqueda'].strip()  # Eliminar espacios extra
+    else:
+        # Si se llega desde "Consultar Discografía", usar el nombre del artista como búsqueda inicial
+        busqueda = nombre_artista
 
+    if busqueda:
         # 🔹 1. Buscar en la base de datos (SIN LÍMITE)
         cursor = conexion.connection.cursor()
         cursor.execute("""
             SELECT DISTINCT nombre, artista, year, formato, url 
             FROM albumes 
-            WHERE LOWER(nombre) LIKE LOWER(%s)
-        """, ('%' + busqueda + '%',))
+            WHERE LOWER(nombre) LIKE LOWER(%s) OR LOWER(artista) = LOWER(%s)
+        """, ('%' + busqueda + '%', busqueda))
 
         albumes_bd = [{"nombre": fila["nombre"], "artista": fila["artista"], "year": fila["year"], 
                        "formato": fila["formato"], "url": fila["url"]} for fila in cursor.fetchall()]
         print("📀 Álbumes en BD:", albumes_bd)
 
-        # 🔹 2. No se realiza búsqueda en APIs externas en este caso
-
-        # 🔹 3. Evitar duplicados (ya que no hay APIs, no es necesario filtrar)
-
-        # 🔹 4. Combinar resultados finales
+        # 🔹 2. Combinar resultados finales
         albumes = albumes_bd
 
         print("✅ Lista final de álbumes:", albumes)
 
-    return render_template('busqueda_albumes.html', albumes=albumes)
+    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista)
 
 
 @app.route('/ver_album/<id_album>')

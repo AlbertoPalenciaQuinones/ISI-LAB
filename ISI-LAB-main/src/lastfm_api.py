@@ -44,22 +44,66 @@ def obtener_info_album_lastfm(artista, album):
     return None
 
 def obtener_artistas_lastfm(busqueda):
-    """ Busca hasta 5 artistas en Last.fm """
+    """ Busca artistas en Last.fm cuyo nombre coincida exactamente con el término buscado """
     url = "http://ws.audioscrobbler.com/2.0/"
     params = {
         "method": "artist.search",
         "artist": busqueda,
         "api_key": API_KEY,
         "format": "json",
-        "limit": 5  # 🔹 Last.fm permite limitar con este parámetro
+        "limit": 10  # Consultamos más y filtramos luego
     }
 
     response = requests.get(url, params=params)
 
     if response.status_code == 200:
-        resultados = response.json().get("results", {}).get("artistmatches", {}).get("artist", [])[:5]  # 🔹 Limitar a 5
-        artistas = [{"nombre": artista["name"]} for artista in resultados]
+        resultados = response.json().get("results", {}).get("artistmatches", {}).get("artist", [])
+
+        busqueda_normalizada = busqueda.strip().lower()
+        artistas = []
+
+        for artista in resultados:
+            nombre = artista.get("name", "").strip()
+            if nombre.lower() == busqueda_normalizada:
+                artistas.append({
+                    "nombre": nombre,
+                    "url": artista.get("url", "#"),
+                    "imagen": artista.get("image", [{}])[-1].get("#text", ""),
+                    "listeners": int(artista.get("listeners", 0)),
+                    "plays": 0,  # Este valor no viene en la búsqueda, solo en getinfo
+                    "tags": "No disponible"
+                })
+
         return artistas
 
     return []
+
+
+def obtener_info_artista_lastfm(nombre):
+    """ Recupera información completa de un artista desde Last.fm (getinfo) """
+    params = {
+        "method": "artist.getinfo",
+        "artist": nombre,
+        "api_key": API_KEY,
+        "format": "json"
+    }
+
+    response = requests.get(BASE_URL, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        artista = data.get("artist", {})
+
+        return {
+            "biografia": artista.get("bio", {}).get("summary", "No disponible"),
+            "imagen": artista.get("image", [{}])[-1].get("#text", ""),
+            "url_lastfm": artista.get("url", "#"),
+            "listeners": int(artista.get("stats", {}).get("listeners", 0)),
+            "plays": int(artista.get("stats", {}).get("playcount", 0)),
+            "tags": ", ".join([tag["name"] for tag in artista.get("tags", {}).get("tag", [])]) if artista.get("tags") else "No especificado"
+        }
+
+    print(f"❌ Error recuperando info de Last.fm para {nombre}")
+    return {}
+
 

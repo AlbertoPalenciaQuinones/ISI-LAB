@@ -4,48 +4,41 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Búsqueda por Álbumes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
-        /* Estilos generales */
         body {
             font-family: Arial, sans-serif;
             background-color: #d9d9d9;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
             margin: 0;
+            padding: 20px;
+            width: 100%;
         }
 
-        /* Contenedor principal */
-        .container {
-            width: 80%;
-            max-width: 900px;
-            padding: 30px;
+        .search-container {
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            justify-content: center;
+            padding: 20px;
             background-color: white;
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
-            text-align: center;
-        }
-
-        /* Estilo del título */
-        h1 {
-            color: #006400;
-            font-size: 32px;
-            font-weight: bold;
             margin-bottom: 20px;
         }
 
-        /* Formulario de búsqueda */
         .search-form {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            width: 100%;
+            max-width: 900px;
             gap: 10px;
-            margin-bottom: 20px;
+            justify-content: center;
         }
 
         .search-form input {
-            width: 60%;
+            flex-grow: 1;
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ccc;
@@ -66,68 +59,91 @@
             background-color: #004d00;
         }
 
-        /* Contenedor de los resultados */
         .results-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
+            width: 100%;
+            max-width: 1100px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
             margin-top: 20px;
         }
 
-        /* Estilo de cada tarjeta de álbum */
         .album-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background-color: #f9f9f9;
             padding: 15px;
             border-radius: 8px;
             box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.1);
-            text-align: left;
             border-left: 5px solid #006400;
+            margin-bottom: 10px;
         }
 
-        .album-card h2 {
+        .album-info {
+            text-align: left;
+        }
+
+        .album-info h2 {
             margin: 0;
             color: #006400;
-            font-size: 22px;
+            font-size: 20px;
         }
 
-        .album-card p {
-            margin: 5px 0;
+        .album-info p {
+            margin: 3px 0;
             font-size: 14px;
         }
 
-        .album-card a {
-            color: #004d00;
+        .btn-detalles {
+            background-color: #0066cc;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            font-size: 14px;
+            border-radius: 5px;
+            cursor: pointer;
             text-decoration: none;
             font-weight: bold;
         }
 
-        .album-card a:hover {
-            text-decoration: underline;
+        .btn-detalles:hover {
+            background-color: #004c99;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>Búsqueda por Álbumes</h1>
+    {% extends "base.html" %}
+    {% block title %}Búsqueda por Álbumes{% endblock %}
+    {% block content %}
 
-        <!-- Formulario de búsqueda -->
+    <div class="search-container">
         <form method="POST" class="search-form">
             <input type="text" name="busqueda" placeholder="Buscar por álbum..." required>
             <button type="submit">Buscar</button>
         </form>
+    </div>
 
-        <!-- Contenedor donde se mostrarán los resultados -->
-        <div class="results-container">
+    <div class="results-container">
+        <h2>Resultados de la búsqueda</h2>
+        {% if albumes %}
             {% for album in albumes %}
             <div class="album-card">
-                <h2>{{ album.nombre }}</h2>
-                <p><strong>Artista:</strong> {{ album.artista }}</p>
-                <p><strong>Año:</strong> {{ album.year }}</p>
-                <p><strong>Formato:</strong> {{ album.formato }}</p>
-                <p><strong>Más info:</strong> <a href="{{ album.url }}" target="_blank">Ver detalles</a></p>
+                <div class="album-info">
+                    <h2>{{ album.nombre }}</h2>
+                    <p><strong>Artista:</strong> {{ album.artista }}</p>
+                    <p><strong>Año:</strong> {{ album.year }}</p>
+                    <p><strong>Formato:</strong> {{ album.formato }}</p>
+                </div>
+                <a href="{{ url_for('ver_album', album_id=album.id) }}" class="btn-detalles">Ver Detalles</a>
             </div>
             {% endfor %}
-        </div>
+        {% else %}
+            <p>No se encontraron álbumes.</p>
+        {% endif %}
     </div>
+
+    {% endblock %}
 </body>
 </html>
