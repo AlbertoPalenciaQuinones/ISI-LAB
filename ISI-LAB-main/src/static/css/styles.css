@@ -319,10 +319,12 @@ input[type="checkbox"] {
 }
 
 .album-card img {
-    width: 100%;
-    height: 200px;
-    object-fit: cover;
-    border-radius: 10px;
+    width: 90%; /* Reduce ligeramente el tamaño de la imagen */
+    max-width: 135px; /* Limita el ancho máximo de la imagen */
+    height: auto; /* Mantiene la proporción de la imagen */
+    object-fit: cover; /* Ajusta la imagen para que no se deforme */
+    border-radius: 10px; /* Bordes redondeados */
+    margin: 0 auto 10px auto; /* Añade separación inferior con el texto */
 }
 
 .album-info {

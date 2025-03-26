@@ -4,7 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import uuid
 from config import config
 from discogs_api import obtener_artistas_discogs, obtener_info_discogs  # Importar funciones de la API de Discogs
-from lastfm_api import  obtener_info_album_lastfm, obtener_artistas_lastfm, obtener_info_artista_lastfm  # Importar funciones de la API de last.fm
+from lastfm_api import  obtener_info_album_lastfm, obtener_artistas_lastfm, obtener_info_artista_lastfm, buscar_albumes_por_artista # Importar funciones de la API de last.fm
 from database import guardar_artista
 
 app = Flask(__name__)
@@ -101,7 +101,6 @@ def buscar_artistas_en_api(busqueda):
         info_lastfm = obtener_info_artista_lastfm(nombre)  # Esta función debe ser tipo artist.getinfo
 
         artista_completo = {
-            "id_artista": None,
             "nombre": nombre,
             "biografia": info_lastfm.get("biografia", "No disponible"),
             "imagen": imagen_discogs if imagen_discogs else info_lastfm.get("imagen", ""),
@@ -121,6 +120,7 @@ def buscar_artistas_en_api(busqueda):
 @app.route('/busqueda_artistas', methods=['GET', 'POST'])
 def busqueda_artistas():
     artistas = []
+    artistas_bd = []  # Initialize as an empty list to avoid UnboundLocalError
 
     if request.method == 'POST':
         busqueda = request.form['busqueda'].strip()
@@ -138,67 +138,79 @@ def busqueda_artistas():
 
         if not artistas_bd:  # Solo busca en API si no lo encuentra en la BD
             print("🔍 No encontrado en BD. Buscando en API...")
-            artistas_api = buscar_artistas_en_api(busqueda)
+            artistas_api = obtener_info_artista_lastfm(busqueda)  # Llama a la API de Last.fm
+            print("🔍 Resultado de la API de Last.fm:", artistas_api)
 
-            # Guardar en la BD los artistas nuevos
-            for artista in artistas_api:
-                guardar_artista(
-                    id_artista=artista["id_artista"],
-                    nombre=artista["nombre"],
-                    biografia=artista["biografia"],
-                    imagen=artista["imagen"],
-                    url_discogs=artista["url_discogs"],
-                    url_lastfm=artista["url_lastfm"],
-                    listeners=artista["listeners"],
-                    plays=artista["plays"],
-                    tags=artista["tags"]
-                )
+            # Validar si artistas_api es un diccionario y convertirlo en una lista
+            if isinstance(artistas_api, dict):
+                artistas_api = [artistas_api]
 
-            artistas = artistas_api  # Mostrar los nuevos resultados de la API
+            # Validar que artistas_api sea una lista de diccionarios
+            if isinstance(artistas_api, list) and all(isinstance(artista, dict) for artista in artistas_api):
+                # Guardar en la BD los artistas nuevos
+                for artista in artistas_api:
+                    guardar_artista(
+                        nombre=artista.get("nombre", "Desconocido"),
+                        biografia=artista.get("biografia", "No disponible"),
+                        imagen=artista.get("imagen", ""),
+                        url_discogs=artista.get("url_discogs", "#"),
+                        url_lastfm=artista.get("url_lastfm", "#"),
+                        listeners=artista.get("listeners", 0),
+                        plays=artista.get("plays", 0),
+                        tags=artista.get("tags", "No especificado")
+                    )
+
+                    # 🔹 2. Obtener y guardar los álbumes del artista
+                    # 🔹 2. Obtener y guardar los álbumes del artista
+                albumes = buscar_albumes_por_artista(artista["nombre"])  # Llama a una función que obtenga los álbumes del artista
+                for album in albumes:
+                    # Validar que el álbum tenga un nombre antes de llamar a obtener_info_album_lastfm
+                    if "nombre" in album and album["nombre"]:
+                        info_album = obtener_info_album_lastfm(artista["nombre"], album["nombre"])
+                        if info_album:
+                            cursor.execute("""
+                                INSERT INTO albumes (nombre, artista, year, formato, url, lastfm_image, lastfm_url)
+                                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                ON DUPLICATE KEY UPDATE nombre = nombre
+                            """, (
+                                album["nombre"],
+                                artista["nombre"],  # Relacionar el álbum con el artista
+                                album.get("year"),
+                                album.get("formato"),
+                                info_album.get("url"),
+                                info_album.get("image"),
+                                info_album.get("url")
+                            ))
+                conexion.connection.commit()
+
+                artistas = artistas_api  # Mostrar los nuevos resultados de la API
+            else:
+                print("⚠️ La API de Last.fm devolvió un formato inesperado.")
+                flash("No se encontraron artistas con ese nombre. Intenta con otro término de búsqueda.", "warning")
         else:
             print("✅ Artista encontrado en BD.")
             artistas = artistas_bd  # Mostrar los resultados de la BD
 
     return render_template('busqueda_artistas.html', artistas=artistas)
-
 # --------------------------------------------------------------------------------------------------------------------------------- #
 
-@app.route('/discografia/<artista>')
-def discografia(artista):
-    cursor = conexion.connection.cursor()
-    cursor.execute("""
-        SELECT nombre, year, formato, url
-        FROM albumes 
-        WHERE artista = %s
-    """, (artista,))
-    
-    albumes = cursor.fetchall()
-    return render_template('discografia.html', artista=artista, albumes=albumes)
-
-
-@app.route('/busqueda_albumes', methods=['GET', 'POST'])
-def busqueda_albumes():
+@app.route('/discografia/<nombre_artista>', methods=['GET', 'POST'])
+def discografia_artista(nombre_artista):
     albumes = []  # Lista para almacenar los resultados finales
     mensaje_error = None  # Variable para almacenar el mensaje de error
 
-    # Capturar el nombre del artista si se pasa como parámetro en la URL
-    nombre_artista = request.args.get('artista', '').strip()
-
-    if request.method == 'POST':
-        busqueda = request.form['busqueda'].strip()  # Eliminar espacios extra
-    else:
-        # Si se llega desde "Consultar Discografía", usar el nombre del artista como búsqueda inicial
-        busqueda = nombre_artista
+    # Usar el nombre del artista como término de búsqueda
+    busqueda = nombre_artista.strip()
 
     if busqueda:
         try:
-            # Buscar en la base de datos
+            # Buscar en la base de datos por el nombre del artista
             cursor = conexion.connection.cursor()
             cursor.execute("""
                 SELECT DISTINCT id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url
                 FROM albumes
-                WHERE LOWER(nombre) LIKE LOWER(%s) OR LOWER(artista) = LOWER(%s)
-            """, ('%' + busqueda + '%', busqueda))
+                WHERE LOWER(artista) = LOWER(%s)
+            """, (busqueda,))
 
             albumes_bd = [{"id_album": fila["id_album"], "nombre": fila["nombre"], "artista": fila["artista"],
                            "year": fila["year"], "formato": fila["formato"], "url": fila["url"],
@@ -213,11 +225,89 @@ def busqueda_albumes():
                     # Guardar en la BD los álbumes nuevos
                     for album in albumes_api:
                         cursor.execute("""
-                            INSERT INTO albumes (id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                        """, (album["id_album"], album["nombre"], album["artista"], album["year"],
+                            INSERT INTO albumes (nombre, artista, year, formato, url, lastfm_image, lastfm_url)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        """, (album["nombre"], album["artista"], album["year"],
                               album["formato"], album["url"], album["imagen"], album["lastfm_url"]))
                         conexion.connection.commit()
+
+                    albumes = albumes_api  # Mostrar los nuevos resultados de la API
+                else:
+                    mensaje_error = f"No se encontraron álbumes para el artista '{nombre_artista}'."
+            else:
+                print("✅ Álbum encontrado en BD.")
+                albumes = albumes_bd  # Mostrar los resultados de la BD
+        except Exception as e:
+            print(f"⚠️ Error al buscar álbumes: {e}")
+            mensaje_error = "No se han encontrado álbumes de este artista."
+    else:
+        mensaje_error = "Por favor, ingresa un término de búsqueda."
+
+    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista, mensaje_error=mensaje_error)
+
+@app.route('/busqueda_albumes', methods=['GET', 'POST'])
+def busqueda_albumes():
+    albumes = []  # Lista para almacenar los resultados finales
+    mensaje_error = None  # Variable para almacenar el mensaje de error
+
+    # Capturar el contexto y el nombre del artista si se pasa como parámetro en la URL
+    contexto = request.args.get('contexto', 'busqueda_album')  # Por defecto, es una búsqueda de álbumes
+    nombre_artista = request.args.get('artista', '').strip()
+
+    if request.method == 'POST':
+        busqueda = request.form['busqueda'].strip()  # Eliminar espacios extra
+    else:
+        # Si se llega desde "Consultar Discografía", usar el nombre del artista como búsqueda inicial
+        busqueda = nombre_artista if contexto == 'discografia' else ''
+
+    if busqueda:
+        try:
+            # Buscar en la base de datos
+            cursor = conexion.connection.cursor()
+            if contexto == 'discografia':
+                # Buscar álbumes por el nombre del artista
+                cursor.execute("""
+                    SELECT DISTINCT id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url
+                    FROM albumes
+                    WHERE LOWER(artista) = LOWER(%s)
+                """, (busqueda,))
+            else:
+                # Buscar álbumes por el nombre del álbum o el artista
+                cursor.execute("""
+                    SELECT DISTINCT id_album, nombre, artista, year, formato, url, lastfm_image, lastfm_url
+                    FROM albumes
+                    WHERE LOWER(nombre) LIKE LOWER(%s) OR LOWER(artista) = LOWER(%s)
+                """, ('%' + busqueda + '%', busqueda))
+
+            albumes_bd = [{"id_album": fila["id_album"], "nombre": fila["nombre"], "artista": fila["artista"],
+                           "year": fila["year"], "formato": fila["formato"], "url": fila["url"],
+                           "imagen": fila["lastfm_image"], "lastfm_url": fila["lastfm_url"]} for fila in cursor.fetchall()]
+            print("📀 Álbumes en BD:", albumes_bd)
+
+            if not albumes_bd:  # Solo busca en API si no lo encuentra en la BD
+                print("🔍 No encontrado en BD. Buscando en API...")
+                albumes_api = buscar_albumes_por_artista(busqueda)  # Llama a la función para obtener los álbumes del artista
+
+                if albumes_api:
+                    # Guardar en la BD los álbumes nuevos
+                    for album in albumes_api:
+                        # Validar que el álbum tenga un nombre antes de llamar a obtener_info_album_lastfm
+                        if "nombre" in album and album["nombre"]:
+                            info_album = obtener_info_album_lastfm(busqueda, album["nombre"])  # Llama a la API con artista y álbum
+                            if info_album:
+                                cursor.execute("""
+                                    INSERT INTO albumes (nombre, artista, year, formato, url, lastfm_image, lastfm_url)
+                                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                                """, (
+                                    album["nombre"],
+                                    busqueda,  # Relacionar el álbum con el artista
+                                    info_album.get("year"),
+                                    info_album.get("formato"),
+                                    info_album.get("url"),
+                                    info_album.get("image"),
+                                    info_album.get("url")
+                                ))
+                    conexion.connection.commit()
 
                     albumes = albumes_api  # Mostrar los nuevos resultados de la API
                 else:
@@ -231,7 +321,7 @@ def busqueda_albumes():
     else:
         mensaje_error = "Por favor, ingresa un término de búsqueda."
 
-    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista, mensaje_error=mensaje_error)
+    return render_template('busqueda_albumes.html', albumes=albumes, nombre_artista=nombre_artista, contexto=contexto, mensaje_error=mensaje_error)
 
 @app.route('/ver_album/<id_album>')
 def ver_album(id_album):
@@ -297,12 +387,30 @@ def add_to_wishlist(id_album):
             ON DUPLICATE KEY UPDATE id_album = id_album
         """, (id_wishlist, usuario_id, id_album))
         conexion.connection.commit()
+
+        # Obtener el nombre del álbum para la descripción
+        cursor.execute("""
+            SELECT nombre FROM albumes WHERE id_album = %s
+        """, (id_album,))
+        album = cursor.fetchone()
+        descripcion = f"El álbum '{album['nombre']}' ha sido añadido a tu wishlist"
+
+        # Insertar notificación con el nombre del álbum
+        id_notificacion = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO notificaciones (id_notificacion, id_usuario, id_album, estado, descripcion)
+            VALUES (%s, %s, %s, 'pendiente', %s)
+        """, (id_notificacion, usuario_id, id_album, descripcion))
+        conexion.connection.commit()
+
         flash("¡El álbum ha sido añadido a tu wishlist con éxito!", "success")
     except Exception as e:
         print(f"Error al añadir a la wishlist: {e}")
         flash("Ocurrió un error al intentar añadir el álbum a tu wishlist.", "danger")
 
     return redirect(url_for('ver_album', id_album=id_album))
+
+
 
 @app.route('/remove_from_wishlist/<id_album>', methods=['POST'])
 def remove_from_wishlist(id_album):
@@ -318,12 +426,50 @@ def remove_from_wishlist(id_album):
             WHERE id_usuario = %s AND id_album = %s
         """, (usuario_id, id_album))
         conexion.connection.commit()
+
+        # Obtener el nombre del álbum para la descripción
+        cursor.execute("""
+            SELECT nombre FROM albumes WHERE id_album = %s
+        """, (id_album,))
+        album = cursor.fetchone()
+        descripcion = f"El álbum '{album['nombre']}' ha sido eliminado de tu wishlist"
+
+        # Insertar notificación con el nombre del álbum
+        id_notificacion = str(uuid.uuid4())
+        cursor.execute("""
+            INSERT INTO notificaciones (id_notificacion, id_usuario, id_album, estado, descripcion)
+            VALUES (%s, %s, %s, 'pendiente', %s)
+        """, (id_notificacion, usuario_id, id_album, descripcion))
+        conexion.connection.commit()
+
         flash("¡El álbum ha sido eliminado de tu wishlist con éxito!", "success")
     except Exception as e:
         print(f"Error al eliminar de la wishlist: {e}")
         flash("Ocurrió un error al intentar eliminar el álbum de tu wishlist.", "danger")
 
     return redirect(url_for('wishlist'))
+
+@app.route('/eliminar_notificacion/<id_notificacion>', methods=['GET'])
+def eliminar_notificacion(id_notificacion):
+    if 'usuario_id' not in session:
+        return redirect(url_for('inicio_sesion'))
+
+    usuario_id = session['usuario_id']
+    cursor = conexion.connection.cursor()
+    try:
+        # Eliminamos la notificación solo si pertenece al usuario actual
+        cursor.execute("""
+            DELETE FROM notificaciones
+            WHERE id_notificacion = %s AND id_usuario = %s
+        """, (id_notificacion, usuario_id))
+        conexion.connection.commit()  # Aseguramos que los cambios se guarden en la base de datos
+    except Exception as e:
+        print(f"Error al eliminar la notificación: {e}")
+    
+    return redirect(url_for('notificaciones'))  # Redirigir a la lista de notificaciones
+
+
+
 
 @app.route('/wishlist')
 def wishlist():
@@ -370,7 +516,7 @@ def notificaciones():
     cursor = conexion.connection.cursor()
     cursor.execute("""
         SELECT notificaciones.id_notificacion, notificaciones.fecha_creacion, 
-               albumes.nombre AS album, notificaciones.estado
+               notificaciones.descripcion, albumes.nombre AS album, notificaciones.estado
         FROM notificaciones
         LEFT JOIN albumes ON notificaciones.id_album = albumes.id_album
         WHERE notificaciones.id_usuario = %s
@@ -407,11 +553,7 @@ def buscar_artista_view():
     return render_template('buscar_artista.html', artistas=artistas)
 
 
-@app.route('/discografia_discogs/<artista_id>')
-def discografia_discogs(artista_id):
-    """ Vista para mostrar la discografía de un artista en Discogs """
-    #discografia = obtener_discografia(artista_id)
-    return render_template('discografia_discogs.html', discografia=discografia)
+
 
 
 if __name__ == '__main__':

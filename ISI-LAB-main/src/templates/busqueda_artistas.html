@@ -18,6 +18,15 @@
             width: 100%;
         }
 
+        /* Título de la página */
+        .page-title {
+            font-size: 3vw; /* Escala con el ancho de la ventana */
+            text-align: center;
+            color: green;
+            margin-bottom: 30px; /* Separación de la parte superior */
+            font-weight: bold;
+        }
+
         /* Contenedor de búsqueda */
         .search-container {
             width: 100%;  /* 🔹 Ahora ocupa todo el ancho disponible */
@@ -162,6 +171,9 @@
 
     {% block content %}
 
+    <!-- Título de la página -->
+    <div class="page-title">Búsqueda de Artistas</div>
+
     <!-- Formulario de búsqueda -->
     <div class="search-container">
         <form method="POST" class="search-form">
@@ -172,13 +184,13 @@
 
     <!-- Contenedor de los resultados -->
     <div class="results-container">
-        <h2>Resultados de la búsqueda</h2>
         {% if artistas %}
             {% for artista in artistas %}
             <div class="artist-card">
                 <!-- Imagen del artista -->
-                <img src="{{ artista.imagen }}" alt="{{ artista.nombre }}" class="artist-image">
-            
+                <div class="artist-image-container">
+                    <img src="{{ artista.imagen or url_for('static', filename='images/default_artist.png') }}" alt="Imagen del artista" class="artist-image">
+                </div>
                 <!-- Información del artista -->
                 <div class="artist-info">
                     <h2>{{ artista.nombre }}</h2>
@@ -189,19 +201,17 @@
             
                 <!-- Botones de acción -->
                 <div class="artist-actions">
-                    <a href="{{ url_for('busqueda_albumes', artista=artista.nombre) }}" class="btn-discografia">Consultar Discografía</a>
-                
-                    {% if artista.url_discogs %}
+                    <a href="{{ url_for('busqueda_albumes', contexto='discografia', artista=artista.nombre) }}" class="btn-discografia">Consultar Discografía</a>
+                    {% if artista.url_lastfm %}
                         <a href="{{ artista.url_lastfm }}" target="_blank" class="btn-info">Más Información</a>
                     {% else %}
                         <a href="#" class="btn-info disabled">Sin información</a>
                     {% endif %}
                 </div>
             </div>
-            
             {% endfor %}
         {% else %}
-            <p>No se encontraron resultados.</p>
+        <p style="text-align: center; font-size: 18px; color: #666;">No se encontraron artistas.</p>
         {% endif %}
     </div>
 

@@ -17,6 +17,15 @@
             width: 100%;
         }
 
+        /* Título en la parte superior */
+        .page-title {
+            font-size: 3vw;  /* Ajusta el tamaño del título al 3% del ancho de la ventana */
+            text-align: center;
+            color: green;
+            margin-bottom: 30px; /* Espacio debajo del título */
+            font-weight: bold;
+        }
+
         .search-container {
             width: 100%;
             max-width: 1100px;
@@ -119,7 +128,7 @@
 
         .btn-detalles:hover {
             background-color: #004d00;
-     }
+        }
 
         .album-actions {
             display: flex;
@@ -158,32 +167,35 @@
     {% block title %}Búsqueda por Álbumes{% endblock %}
     {% block content %}
 
+    <!-- Título de la página -->
+    <div class="page-title">Búsqueda por Álbumes</div>
+
     <div class="search-container">
         <form method="POST" class="search-form">
-            <input type="text" name="busqueda" placeholder="Buscar por álbum..." required>
+            <input type="text" name="busqueda" placeholder="Buscar álbumes..." value="{{ nombre_artista }}" required>
             <button type="submit">Buscar</button>
         </form>
     </div>
 
+    {% if albumes or mensaje_error %}
     <div class="results-container">
-        <h2>Resultados de la búsqueda</h2>
         {% if albumes %}
             {% for album in albumes %}
             <div class="album-card">
                 <!-- Imagen del álbum -->
                 <div class="album-image">
-                    <img src="{{ album.imagen or url_for('static', filename='images/default_album.png') }}" alt="Imagen del álbum">
+                    <img src="{{ album.imagen or url_for('static', filename='images/default_album.png') }}" alt="Imagen del álbum" class="album-image">
                 </div>
                 <!-- Información del álbum -->
                 <div class="album-info">
                     <h2>{{ album.nombre }}</h2>
                     <p><strong>Artista:</strong> {{ album.artista }}</p>
-                    <p><strong>Año:</strong> {{ album.year }}</p>
-                    <p><strong>Formato:</strong> {{ album.formato }}</p>
+                    <p><strong>Año:</strong> {{ album.year or 'No disponible' }}</p>
+                    <p><strong>Formato:</strong> {{ album.formato or 'No disponible' }}</p>
                 </div>
                 <!-- Botones de acción -->
                 <div class="album-actions">
-                    <a href="{{ url_for('ver_album', id_album=album.id_album) }}" class="btn-detalles">Ver Detalles</a>
+                    <a href="{{ url_for('ver_album', id_album=album.id_album, from_page='discografia') }}" class="btn-detalles">Ver Detalles</a>
                     {% if album.lastfm_url %}
                         <a href="{{ album.lastfm_url }}" target="_blank" class="btn-info">Más Información</a>
                     {% else %}
@@ -193,11 +205,11 @@
             </div>
             {% endfor %}
         {% else %}
-            <p style="text-align: center; font-size: 18px; color: #666;">No se encontraron resultados.</p>
+            <p style="text-align: center; font-size: 18px; color: #666;">No se encontraron álbumes.</p>
         {% endif %}
     </div>
-    
-    
+    {% endif %}
+
     {% endblock %}
 </body>
 </html>

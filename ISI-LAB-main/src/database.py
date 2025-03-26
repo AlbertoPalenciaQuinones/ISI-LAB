@@ -1,4 +1,4 @@
-import pymysql
+import pymysql # type: ignore
 from config import config
 
 # 🚀 Conectar a la Base de Datos MySQL
@@ -17,7 +17,7 @@ def conectar():
         return None
 
 # 🚀 Guardar un álbum en la base de datos evitando duplicados
-def guardar_album(id_album, nombre, artista, year, formato, url, sello_discografico, rating, 
+def guardar_album(nombre, artista, year, formato, url, sello_discografico, rating, 
                   lastfm_listeners, lastfm_plays, lastfm_url, lastfm_image, lastfm_tags, discogs_availability):
 
     conexion = conectar()
@@ -28,16 +28,16 @@ def guardar_album(id_album, nombre, artista, year, formato, url, sello_discograf
 
     try:
         with conexion.cursor() as cursor:
-            sql = """INSERT INTO albumes (id_album, nombre, artista, year, formato, url, sello_discografico, rating, 
+            sql = """INSERT INTO albumes (nombre, artista, year, formato, url, sello_discografico, rating, 
                                           lastfm_listeners, lastfm_plays, lastfm_url, lastfm_image, lastfm_tags, discogs_availability)
-                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                      ON DUPLICATE KEY UPDATE 
                      nombre=VALUES(nombre), artista=VALUES(artista), year=VALUES(year), formato=VALUES(formato),
                      url=VALUES(url), sello_discografico=VALUES(sello_discografico), rating=VALUES(rating), 
                      lastfm_listeners=VALUES(lastfm_listeners), lastfm_plays=VALUES(lastfm_plays), lastfm_url=VALUES(lastfm_url), 
                      lastfm_image=VALUES(lastfm_image), lastfm_tags=VALUES(lastfm_tags), discogs_availability=VALUES(discogs_availability)"""
             
-            cursor.execute(sql, (id_album, nombre, artista, year, formato, url, sello_discografico, rating,
+            cursor.execute(sql, (nombre, artista, year, formato, url, sello_discografico, rating,
                                  lastfm_listeners, lastfm_plays, lastfm_url, lastfm_image, lastfm_tags, discogs_availability))
         
         conexion.commit()
@@ -50,7 +50,7 @@ def guardar_album(id_album, nombre, artista, year, formato, url, sello_discograf
         conexion.close()
 
 
-def guardar_artista(id_artista, nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags):
+def guardar_artista(nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags):
     """ Guarda un artista en MySQL o actualiza si ya existe """
     conexion = pymysql.connect(
         host=config['development'].MYSQL_HOST,
@@ -63,13 +63,13 @@ def guardar_artista(id_artista, nombre, biografia, imagen, url_discogs, url_last
     try:
         with conexion.cursor() as cursor:
             sql = """
-                INSERT INTO artistas (id_artista, nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                INSERT INTO artistas (nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 ON DUPLICATE KEY UPDATE 
                 biografia=VALUES(biografia), imagen=VALUES(imagen), url_discogs=VALUES(url_discogs), 
                 url_lastfm=VALUES(url_lastfm), listeners=VALUES(listeners), plays=VALUES(plays), tags=VALUES(tags)
             """
-            cursor.execute(sql, (id_artista, nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags))
+            cursor.execute(sql, (nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags))
         
         conexion.commit()
         print(f"✅ Artista '{nombre}' guardado en MySQL.")

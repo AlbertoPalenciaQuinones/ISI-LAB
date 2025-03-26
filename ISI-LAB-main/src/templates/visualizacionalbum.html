@@ -126,13 +126,22 @@
             </div>
         </div>
 
-        <a href="{{ url_for(from_page) }}" class="btn-back">
-            {% if from_page == 'wishlist' %}
-                Volver a la Wishlist
-            {% else %}
-                Volver a la Búsqueda
-            {% endif %}
-        </a>
+        <a href="{% if from_page == 'wishlist' %}
+            {{ url_for('wishlist') }}
+         {% elif from_page == 'discografia' %}
+            {{ url_for('busqueda_albumes', contexto='discografia', artista=album.artista) }}
+         {% else %}
+            {{ url_for('busqueda_albumes') }}
+         {% endif %}" 
+   class="btn-back">
+    {% if from_page == 'wishlist' %}
+        Volver a la Wishlist
+    {% elif from_page == 'discografia' %}
+        Volver a la Discografía
+    {% else %}
+        Volver a la Búsqueda
+    {% endif %}
+</a>
         </div>
     {% endblock %}
 </body>
