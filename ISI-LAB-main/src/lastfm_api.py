@@ -268,4 +268,32 @@ def obtener_info_artista_lastfm(nombre):
     return {}
 
 
+def obtener_canciones_album_lastfm(artista, album):
+    """ Obtiene las canciones de un álbum desde Last.fm """
+    params = {
+        "method": "album.getinfo",
+        "artist": artista,
+        "album": album,
+        "api_key": API_KEY,
+        "format": "json"
+    }
 
+    response = requests.get(BASE_URL, params=params)
+
+    if response.status_code == 200:
+        datos = response.json()
+
+        if "album" in datos and "tracks" in datos["album"] and "track" in datos["album"]["tracks"]:
+            canciones = datos["album"]["tracks"]["track"]
+
+            # Procesar las canciones y devolver una lista de diccionarios
+            return [
+                {
+                    "nombre": cancion.get("name", "Desconocido"),
+                    "url": cancion.get("url", "#")
+                }
+                for cancion in canciones if isinstance(cancion, dict) and "name" in cancion
+            ]
+
+    print(f"⚠️ No se encontraron canciones para el álbum '{album}' del artista '{artista}' en Last.fm.")
+    return []

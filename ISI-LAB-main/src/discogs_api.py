@@ -37,7 +37,6 @@ def obtener_artistas_discogs(busqueda):
     return []
 
 
-# 🔹 ✅ Función para buscar un álbum en Discogs
 def obtener_info_discogs(artista, album):
     """ Busca un álbum en Discogs y devuelve sus detalles """
     url = f"{BASE_URL}/database/search"
@@ -51,23 +50,26 @@ def obtener_info_discogs(artista, album):
         if resultados:
             album_data = resultados[0]  # Tomamos el primer resultado
             id_album = str(album_data["id"])
-            nombre = album_data["title"]
+            nombre = album_data.get("title", "Desconocido")
             formato = ", ".join(album_data.get("format", ["Desconocido"]))
             year = album_data.get("year", None)
-            url_discogs = album_data["resource_url"]
+            url_discogs = album_data.get("resource_url", "")
             sello_discografico = ", ".join(album_data.get("label", ["Desconocido"]))
             rating = album_data.get("community", {}).get("rating", {}).get("average", None)
 
+            # Imprimir los valores que estamos obteniendo
             print(f"✅ Álbum encontrado: {nombre} de {artista} ({year})")
+
+            # Asegurarse de que los valores no sean nulos antes de la inserción en la base de datos
             return {
                 "id_album": id_album,
                 "nombre": nombre,
                 "artista": artista,
-                "year": year,
-                "formato": formato,
-                "url_discogs": url_discogs,
-                "sello_discografico": sello_discografico,
-                "rating": rating
+                "year": year if year else None,  # Si no hay año, lo dejamos como None
+                "formato": formato if formato else "Desconocido",  # Si no hay formato, asignar valor por defecto
+                "url": url_discogs if url_discogs else "",  # Si no hay URL, dejar cadena vacía
+                "sello_discografico": sello_discografico if sello_discografico else "Desconocido",  # Si no hay sello, asignar valor por defecto
+                "rating": rating if rating else None  # Si no hay rating, dejar None
             }
 
         else:
@@ -77,4 +79,5 @@ def obtener_info_discogs(artista, album):
         print(f"❌ Error en la solicitud a Discogs: {response.status_code} - {response.text}")
 
     return None
+
 

@@ -7,88 +7,126 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         .album-details {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 20px;
+            max-width: 90%; /* Ajustado a 90% para mayor flexibilidad */
+            margin: 10% auto; /* Aumenta el margen superior para evitar que se corte */
+            padding: 3%; /* Espaciado interno del contenedor */
             background-color: white;
             border-radius: 10px;
             box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.2);
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 3%; /* Espaciado entre los elementos internos */
         }
+
 
         .album-header {
             display: flex;
-            gap: 20px;
+            gap: 3%; /* Espaciado entre la imagen y la información */
+            align-items: flex-start; /* Alinea los elementos al inicio */
+            padding-top: 20px; /* Añadir algo de padding-top para evitar el corte en la parte superior */
         }
 
+    
         .album-header img {
-            width: 200px;
-            height: 200px;
+            width: 25%; /* Ajustado al 25% del ancho del contenedor */
+            height: auto; /* Mantiene la proporción de la imagen */
             object-fit: cover;
             border-radius: 10px;
         }
-
+    
         .album-info {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
             text-align: left;
+            padding-top: 10px; /* Añade un padding superior para asegurar que el texto no se corta */
         }
 
+    
         .album-info h1 {
             margin: 0;
             color: #006400;
-            font-size: 28px;
+            font-size: 2rem; /* Tamaño de fuente ajustado */
             font-weight: bold;
         }
-
+    
         .album-info p {
             margin: 5px 0;
-            font-size: 16px;
+            font-size: 1rem; /* Tamaño de fuente ajustado */
             color: #333;
         }
-
+    
         .wishlist-container {
             display: flex;
             align-items: center;
-            gap: 10px;
-            margin-top: 10px;
+            gap: 2%; /* Espaciado entre los botones */
+            margin-top: 2%; /* Espaciado superior */
         }
-
-        .wishlist-icon {
-            font-size: 24px;
-            color: #ff0000;
-            cursor: pointer;
-        }
-
-        .wishlist-icon:hover {
-            color: #cc0000;
-        }
-
-        .wishlist-text {
-            font-size: 16px;
-            color: #006400;
-            font-weight: bold;
-            cursor: pointer;
-        }
-
-        .btn-back {
+    
+        .btn-back, .btn-more-info {
             display: inline-block;
-            margin-top: 20px;
-            padding: 10px 20px;
+            margin-top: 2%; /* Espaciado superior */
+            padding: 10px 20px; /* Espaciado interno del botón */
             background-color: #006400;
             color: white;
             text-decoration: none;
             border-radius: 5px;
             font-weight: bold;
         }
-
-        .btn-back:hover {
+    
+        .btn-back:hover, .btn-more-info:hover {
             background-color: #004d00;
         }
+    
+        .song-list ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .song-list {
+        margin-top: 5%; /* Espaciado superior */
+        max-height: 300px; /* Altura máxima del contenedor */
+        overflow-y: auto; /* Habilita el scroll vertical */
+        padding-right: 10px; /* Espaciado interno para evitar que el scroll tape el contenido */
+    }
+
+    .song-list ul {
+        list-style: none;
+        padding: 0;
+    }
+
+    .song-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px; /* Espaciado entre canciones */
+        padding: 10px; /* Espaciado interno del recuadro */
+        background-color: #f9f9f9; /* Fondo del recuadro */
+        border: 1px solid #ddd; /* Borde del recuadro */
+        border-radius: 5px; /* Bordes redondeados */
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.1); /* Sombra del recuadro */
+    }
+
+    .song-title {
+        font-size: 1rem;
+        font-weight: bold;
+        color: #333;
+    }
+
+    .btn-more-info {
+        padding: 8px 15px;
+        background-color: #006400;
+        color: white;
+        text-decoration: none;
+        border-radius: 5px;
+        font-size: 0.9rem;
+        font-weight: bold;
+    }
+
+    .btn-more-info:hover {
+        background-color: #004d00;
+    }
     </style>
 </head>
 <body>
@@ -108,6 +146,14 @@
                 <p><strong>Género:</strong> {{ album.tags or 'No disponible' }}</p>
                 <p><strong>Sello Discográfico:</strong> {{ album.sello or 'No disponible' }}</p>
                 <p><strong>Disponibilidad:</strong> {{ album.disponibilidad }}</p>
+
+                <!-- Botón "Más Información" que redirige a Last.fm -->
+                {% if album.lastfm_url %}
+                    <a href="{{ album.lastfm_url }}" target="_blank" class="btn-more-info">Más Información</a>
+                {% else %}
+                    <p>No hay información adicional disponible.</p>
+                {% endif %}
+
                 <div class="wishlist-container">
                     {% if album.in_wishlist %}
                         <form action="{{ url_for('remove_from_wishlist', id_album=album.id_album) }}" method="POST">
@@ -126,6 +172,24 @@
             </div>
         </div>
 
+        <div class="song-list">
+            <h2>Canciones</h2>
+            {% if canciones %}
+                <ul>
+                    {% for cancion in canciones %}
+                        <li class="song-item">
+                            <div class="song-title">
+                                {{ cancion.nombre }}
+                            </div>
+                            <a href="{{ cancion.url }}" target="_blank" class="btn-more-info">Más Detalles</a>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p>No hay canciones disponibles para este álbum.</p>
+            {% endif %}
+        </div>
+
         <a href="{% if from_page == 'wishlist' %}
             {{ url_for('wishlist') }}
          {% elif from_page == 'discografia' %}
@@ -142,7 +206,7 @@
         Volver a la Búsqueda
     {% endif %}
 </a>
-        </div>
+    </div>
     {% endblock %}
 </body>
 </html>
