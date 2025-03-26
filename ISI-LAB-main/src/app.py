@@ -81,51 +81,61 @@ def dashboard():
 
 # METODOS PARA BUSCAR ARTISTAS
 
-def buscar_artistas_en_api(busqueda):
-    """ 
-    Busca primero en Discogs y usa esos resultados para buscar información más completa en Last.fm.
-    """
-    artistas_discogs = obtener_artistas_discogs(busqueda)
-    artistas_completos = []
+def procesar_albumes_y_canciones(nombre_artista, cursor):
+    """Busca álbumes y canciones de un artista y los guarda en la base de datos."""
+    albumes_api = buscar_albumes_por_artista(nombre_artista)  # Llama a la función para obtener los álbumes del artista
 
-    if not artistas_discogs:
-        print("⚠️ No se encontraron artistas en Discogs.")
-        return []
+    if albumes_api:
+        for album in albumes_api:
+            if "nombre" in album and album["nombre"]:
+                # Obtener la información desde ambas APIs: Last.fm y Discogs
+                info_album_lastfm = obtener_info_album_lastfm(nombre_artista, album["nombre"])
+                info_album_discogs = obtener_info_discogs(nombre_artista, album["nombre"])
 
-    for artista in artistas_discogs:
-        nombre = artista.get("nombre", "").strip()
-        imagen_discogs = artista.get("imagen", "")
-        url_discogs = artista.get("url", "#")
+                if info_album_lastfm and info_album_discogs:
+                    # Extraer datos de Discogs
+                    year = info_album_discogs.get("year")
+                    formato = info_album_discogs.get("formato", "Desconocido")
+                    sello_discografico = info_album_discogs.get("sello_discografico", "Desconocido")
+                    rating = info_album_discogs.get("rating", None)
+                    url_discogs = info_album_discogs.get("url_discogs", "")
 
-        # 🔹 Llamada a getinfo de Last.fm (para datos completos del artista)
-        info_lastfm = obtener_info_artista_lastfm(nombre)  # Esta función debe ser tipo artist.getinfo
+                    # Extraer datos de Last.fm
+                    lastfm_url = info_album_lastfm.get("url")
+                    lastfm_image = info_album_lastfm.get("image")
+                    lastfm_tags = info_album_lastfm.get("tags", "")
 
-        artista_completo = {
-            "nombre": nombre,
-            "biografia": info_lastfm.get("biografia", "No disponible"),
-            "imagen": imagen_discogs if imagen_discogs else info_lastfm.get("imagen", ""),
-            "url_discogs": url_discogs,
-            "url_lastfm": info_lastfm.get("url_lastfm", "#"),
-            "listeners": info_lastfm.get("listeners", 0),
-            "plays": info_lastfm.get("plays", 0),
-            "tags": info_lastfm.get("tags", "No especificado"),
-        }
+                    # Insertar en la base de datos
+                    cursor.execute("""
+                        INSERT INTO albumes (nombre, artista, year, formato, url, lastfm_image, lastfm_url, sello_discografico, rating)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    """, (
+                        album["nombre"],
+                        nombre_artista,
+                        year,
+                        formato,
+                        lastfm_url,
+                        lastfm_image,
+                        lastfm_url,
+                        sello_discografico,
+                        rating
+                    ))
+                    conexion.connection.commit()
 
-        artistas_completos.append(artista_completo)
-
-    print(f"✅ Artistas procesados con datos combinados: {artistas_completos}")
-    return artistas_completos
-
+                    # Guardar canciones del álbum
+                    guardar_canciones_automatico(album["nombre"], nombre_artista, cursor)
+    else:
+        print(f"⚠️ No se encontraron álbumes para el artista '{nombre_artista}'.")
 
 @app.route('/busqueda_artistas', methods=['GET', 'POST'])
 def busqueda_artistas():
     artistas = []
-    artistas_bd = []  # Initialize as an empty list to avoid UnboundLocalError
+    artistas_bd = []
 
     if request.method == 'POST':
         busqueda = request.form['busqueda'].strip()
 
-        # 🔹 1. Buscar en la base de datos
+        # Buscar en la base de datos
         cursor = conexion.connection.cursor()
         cursor.execute("""
             SELECT id_artista, nombre, biografia, imagen, url_discogs, url_lastfm, listeners, plays, tags
@@ -136,18 +146,14 @@ def busqueda_artistas():
         artistas_bd = [dict(fila) for fila in cursor.fetchall()]
         print("🎵 Artistas en BD:", artistas_bd)
 
-        if not artistas_bd:  # Solo busca en API si no lo encuentra en la BD
+        if not artistas_bd:  # Si no está en la BD, buscar en la API
             print("🔍 No encontrado en BD. Buscando en API...")
-            artistas_api = obtener_info_artista_lastfm(busqueda)  # Llama a la API de Last.fm
-            print("🔍 Resultado de la API de Last.fm:", artistas_api)
+            artistas_api = obtener_info_artista_lastfm(busqueda)
 
-            # Validar si artistas_api es un diccionario y convertirlo en una lista
             if isinstance(artistas_api, dict):
                 artistas_api = [artistas_api]
 
-            # Validar que artistas_api sea una lista de diccionarios
             if isinstance(artistas_api, list) and all(isinstance(artista, dict) for artista in artistas_api):
-                # Guardar en la BD los artistas nuevos
                 for artista in artistas_api:
                     guardar_artista(
                         nombre=artista.get("nombre", "Desconocido"),
@@ -160,36 +166,16 @@ def busqueda_artistas():
                         tags=artista.get("tags", "No especificado")
                     )
 
-                    # 🔹 2. Obtener y guardar los álbumes del artista
-                    # 🔹 2. Obtener y guardar los álbumes del artista
-                albumes = buscar_albumes_por_artista(artista["nombre"])  # Llama a una función que obtenga los álbumes del artista
-                for album in albumes:
-                    # Validar que el álbum tenga un nombre antes de llamar a obtener_info_album_lastfm
-                    if "nombre" in album and album["nombre"]:
-                        info_album = obtener_info_album_lastfm(artista["nombre"], album["nombre"])
-                        if info_album:
-                            cursor.execute("""
-                                INSERT INTO albumes (nombre, artista, year, formato, url, lastfm_image, lastfm_url)
-                                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                                ON DUPLICATE KEY UPDATE nombre = nombre
-                            """, (
-                                album["nombre"],
-                                artista["nombre"],  # Relacionar el álbum con el artista
-                                album.get("year"),
-                                album.get("formato"),
-                                info_album.get("url"),
-                                info_album.get("image"),
-                                info_album.get("url")
-                            ))
-                conexion.connection.commit()
+                    # Procesar álbumes y canciones del artista
+                    procesar_albumes_y_canciones(artista["nombre"], cursor)
 
-                artistas = artistas_api  # Mostrar los nuevos resultados de la API
+                artistas = artistas_api
             else:
                 print("⚠️ La API de Last.fm devolvió un formato inesperado.")
                 flash("No se encontraron artistas con ese nombre. Intenta con otro término de búsqueda.", "warning")
         else:
             print("✅ Artista encontrado en BD.")
-            artistas = artistas_bd  # Mostrar los resultados de la BD
+            artistas = artistas_bd
 
     return render_template('busqueda_artistas.html', artistas=artistas)
 # --------------------------------------------------------------------------------------------------------------------------------- #
